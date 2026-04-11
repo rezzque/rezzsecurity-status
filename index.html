@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RezzSecurity - Statut de l'Infrastructure</title>
+    <link rel="icon" href="https://via.placeholder.com/32x32/ff0000/000000?text=R" type="image/png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- DA : Noir, Rouge (#FF3131), Modern --- */
+        :root {
+            --bg-color: #000000; /* Fond noir pur pour un look pro */
+            --card-bg: #0B0B0B; /* Un gris-noir très sombre pour le contraste */
+            --accent: #FF3131; /* Rouge vif de ton logo */
+            --text-main: #FFFFFF;
+            --text-sub: #A0A0A0;
+            --border: #1A1A1A;
+            
+            /* Couleurs de statut */
+            --status-green: #2ecc71;
+            --status-yellow: #f1c40f;
+            --status-red: #e74c3c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* --- En-tête (Header) --- */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        header img {
+            height: 50px; /* Adapte la hauteur à ton logo */
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: var(--text-sub);
+            font-weight: 400;
+        }
+
+        /* --- Indicateur d'état global --- */
+        .global-status {
+            background-color: #0c1a0c; /* Vert très sombre */
+            color: #4ade80; /* Vert vif */
+            border: 1px solid #166534;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: bold;
+        }
+
+        .global-status.degraded {
+            background-color: #2b1f0c; /* Orange très sombre */
+            color: #fbbf24;
+            border: 1px solid #854d0e;
+        }
+
+        .global-status.outage {
+            background-color: #2e1010; /* Rouge très sombre */
+            color: #f87171;
+            border: 1px solid #991b1b;
+        }
+
+        .global-status .indicator {
+            height: 15px;
+            width: 15px;
+            border-radius: 50%;
+            background-color: var(--status-green);
+        }
+
+        /* --- Section d'état détaillée --- */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .status-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            border-color: #333;
+            transform: translateY(-3px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-header h3 {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .card-header .host {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        .status-check {
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid currentColor;
+        }
+
+        /* --- Historique des incidents (Optionnel mais recommandé) --- */
+        .incidents {
+            margin-top: 50px;
+            border-top: 2px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .incidents h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--text-sub);
+        }
+
+        .incident-item {
+            border-left: 2px solid var(--border);
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .incident-date {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
+
+        .incident-desc {
+            margin-top: 5px;
+        }
+
+        /* --- Pied de page (Footer) --- */
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
+        
+        /* Classes JS pour l'injection des statuts */
+        .status-check.online { color: var(--status-green); background-color: rgba(46, 204, 113, 0.1); }
+        .status-check.degraded { color: var(--status-yellow); background-color: rgba(241, 196, 15, 0.1); }
+        .status-check.outage { color: var(--status-red); background-color: rgba(231, 76, 60, 0.1); }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header>
+            <img src="https://via.placeholder.com/200x50/ff3131/000000?text=REZZSECURITY" alt="Logo RezzSecurity">
+            <h1>Statut du Réseau</h1>
+        </header>
+
+        <div id="global-status-banner" class="global-status">
+            <div id="global-indicator" class="indicator"></div>
+            <span id="global-message">Chargement...</span>
+        </div>
+
+        <section class="status-grid">
+            <div class="status-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Core Bot</h3>
+                        <p class="host">Katabump</p>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span id="bot-main-status" class="status-check degraded">Vérification</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Bot Support</h3>
+                        <p class="host">Mephia</p>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span id="bot-support-status" class="status-check outage">Vérification</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Web Dashboard</h3>
+                        <p class="host">Netlify</p>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span id="dashboard-status" class="status-check online">Vérification</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-header">
+                    <div>
+                        <h3>API Réseau</h3>
+                        <p class="host">Netlify</p>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span id="api-status" class="status-check outage">Vérification</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="incidents">
+            <h2>Incidents récents</h2>
+            <div id="incidents-list">
+                <div class="incident-item">
+                    <div class="incident-date">2 Janvier 2024, 09:12 GMT</div>
+                    <div class="incident-desc">[Résolu] Perturbation de l'API de Katabump.</div>
+                </div>
+                <div class="incident-item">
+                    <div class="incident-date">21 Décembre 2023, 14:00 GMT</div>
+                    <div class="incident-desc">[Fermé] Maintenance planifiée de Mephia terminée.</div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            Dernière mise à jour : <span id="last-updated">--</span>.
+            Actualisation automatique toutes les 5 minutes.
+        </footer>
+    </div>
+
+    <script>
+        // --- LOGIQUE CLIENT-SIDE POUR L'AFFICHAGE ---
+        // Les statuts sont "mockés" ici pour l'exemple. 
+        // C'est le script GitHub Action qui mettra à jour ces valeurs toutes les 5 min.
+
+        const statuses = {
+            'katabump': 'degraded', //online, degraded, outage
+            'mephia': 'online',
+            'netlify': 'outage'
+        };
+
+        const updateUI = () => {
+            // Mise à jour de chaque carte
+            updateCard('bot-main-status', statuses.katabump);
+            updateCard('bot-support-status', statuses.mephia);
+            updateCard('dashboard-status', statuses.netlify); // Front dashboard
+            updateCard('api-status', statuses.netlify); // Back dashboard
+
+            // Mise à jour du bandeau global
+            updateGlobalStatus(statuses);
+            
+            // Heure de mise à jour
+            const now = new Date();
+            document.getElementById('last-updated').innerText = now.toLocaleTimeString('fr-FR');
+        };
+
+        const updateCard = (elementId, status) => {
+            const el = document.getElementById(elementId);
+            el.className = 'status-check ' + status;
+            
+            let message = '';
+            switch(status) {
+                case 'online': message = 'Opérationnel'; break;
+                case 'degraded': message = 'Performance réduite'; break;
+                case 'outage': message = 'Hors ligne'; break;
+                default: message = 'Indisponible';
+            }
+            el.innerText = message;
+        };
+
+        const updateGlobalStatus = (s) => {
+            const banner = document.getElementById('global-status-banner');
+            const message = document.getElementById('global-message');
+            const indicator = document.getElementById('global-indicator');
+
+            // Logique de priorité des erreurs
+            if (Object.values(s).includes('outage')) {
+                banner.className = 'global-status outage';
+                message.innerText = 'Interruption majeure de service détectée.';
+                indicator.style.backgroundColor = 'var(--status-red)';
+            } else if (Object.values(s).includes('degraded')) {
+                banner.className = 'global-status degraded';
+                message.innerText = 'Certains systèmes subissent une dégradation.';
+                indicator.style.backgroundColor = 'var(--status-yellow)';
+            } else {
+                banner.className = 'global-status';
+                message.innerText = 'Tous les systèmes sont opérationnels.';
+                indicator.style.backgroundColor = 'var(--status-green)';
+            }
+        };
+
+        // Lancer la mise à jour initiale
+        updateUI();
+
+        // En production, ce script s'exécute uniquement au chargement.
+        // C'est GitHub Actions qui s'occupe de la fréquence de 5 minutes.
+    </script>
+</body>
+</html>
