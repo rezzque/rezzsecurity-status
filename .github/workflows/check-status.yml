@@ -1,75 +1,43 @@
-name: Check Infrastructure Status
+name: RezzSecurity Auto-Check
 
-# S'exécute toutes les 5 minutes et manuellement
 on:
   schedule:
-    - cron: '*/5 * * * *' # */5 = toutes les 5 minutes
-  workflow_dispatch: # Autorise l'exécution manuelle
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
-  check-status:
+  check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/checkout@v3
-
-      - name: Check Statuses
-        id: status-check
-        shell: bash
-        # Voici le script qui fait les requêtes HTTP (pings)
+      - name: Ping Services
+        id: ping
         run: |
-          # --- Netlify Status ---
-          NETLIFY_STATUS=$(curl -sL "https://www.netlifystatus.com/api/v2/status.json" | jq -r '.status.indicator')
+          # Check Katabump
+          K_CODE=$(curl -o /dev/null -s -w "%{http_code}" https://status.katabump.eu || echo "500")
+          if [ "$K_CODE" = "200" ]; then echo "k=online" >> $GITHUB_OUTPUT; else echo "k=outage" >> $GITHUB_OUTPUT; fi
           
-          # --- Katabump Status (Basique ping HTTP pour l'exemple) ---
-          KATABUMP_STATUS="outage"
-          if curl -sLf --connect-timeout 5 "https://status.katabump.eu" > /dev/null; then
-            KATABUMP_STATUS="online"
-          fi
+          # Check Mephia
+          M_CODE=$(curl -o /dev/null -s -w "%{http_code}" https://status.mephia.fr || echo "500")
+          if [ "$M_CODE" = "200" ]; then echo "m=online" >> $GITHUB_OUTPUT; else echo "m=outage" >> $GITHUB_OUTPUT; fi
           
-          # --- Mephia Status (Basique ping HTTP pour l'exemple) ---
-          MEPHIA_STATUS="outage"
-          if curl -sLf --connect-timeout 5 "https://status.mephia.fr" > /dev/null; then
-            MEPHIA_STATUS="online"
-          fi
-          
-          # Normaliser le statut Netlify pour notre UI (none = online)
-          if [ "$NETLIFY_STATUS" = "none" ]; then
-            NETLIFY_STATUS="online"
-          fi
+          # Check Netlify API
+          N_STATUS=$(curl -s https://www.netlifystatus.com/api/v2/status.json | jq -r '.status.indicator')
+          if [ "$N_STATUS" = "none" ]; then echo "n=online" >> $GITHUB_OUTPUT; else echo "n=outage" >> $GITHUB_OUTPUT; fi
 
-          # Stocker les valeurs dans les variables de sortie
-          echo "katabump=$KATABUMP_STATUS" >> $GITHUB_OUTPUT
-          echo "mephia=$MEPHIA_STATUS" >> $GITHUB_OUTPUT
-          echo "netlify=$NETLIFY_STATUS" >> $GITHUB_OUTPUT
-          
-      - name: Update UI Data
-        shell: bash
-        # C'est ici qu'on injecte les nouvelles données dans le HTML
+      - name: Update File
         run: |
-          # Lire les données de l'étape précédente
-          KB="${{ steps.status-check.outputs.katabump }}"
-          MP="${{ steps.status-check.outputs.mephia }}"
-          NF="${{ steps.status-check.outputs.netlify }}"
+          K=${{ steps.ping.outputs.k }}
+          M=${{ steps.ping.outputs.m }}
+          N=${{ steps.ping.outputs.n }}
           
-          # Utiliser 'sed' pour modifier le fichier index.html
-          # On remplace les valeurs "degraded", "online" et "outage" de l'exemple initial
-          sed -i "s/'degraded', \/\/online/'$KB', \/\/online/" index.html
-          sed -i "s/'online', \/\/online/'$MP', \/\/online/" index.html
-          sed -i "s/'outage', \/\/online/'$NF', \/\/online/" index.html
+          # On remplace les valeurs dans le JS du fichier index.html
+          sed -i "s/katabump: '[a-z]*'/katabump: '$K'/g" index.html
+          sed -i "s/mephia: '[a-z]*'/mephia: '$M'/g" index.html
+          sed -i "s/netlify: '[a-z]*'/netlify: '$N'/g" index.html
 
-          # On met à jour l'heure de build (utile si on désactive le JS client)
-          BUILD_TIME=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
-          sed -i "s/<span id=\"last-updated\">--<\/span>/<span id=\"last-updated\">$BUILD_TIME<\/span>/" index.html
-
-      - name: Commit and Push changes
+      - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "Automatic Status Update"
-          branch: main # Adapte si ta branche par défaut est différente
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: "Infrastructure Status Update [Automated]"
